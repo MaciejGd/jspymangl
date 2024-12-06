@@ -30,8 +30,6 @@ def load(input_file):
 
 
 
-
-
 def main():
     file_content=""
     sys.argv.pop(0)
