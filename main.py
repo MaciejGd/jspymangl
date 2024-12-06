@@ -23,23 +23,73 @@
 
 import esprima.esprima as _es
 import sys
+from mangler import ManglerVisitor as mangVis
 
-"""@open input file for parsing"""
+# load input file 
 def load(input_file):
     return open(input_file, "r").read()
 
+# save output to a file 
+def save(output_file, file_content):
+    with open(output_file, "w") as fp:
+        fp.write(file_content)
 
+# wrapper to the mangler
+class ManglerWrapper():
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.js_code = load(input_file)
+        self.ast = _es.parse(self.js_code)
+        self.tokens = _es.tokenize(self.js_code)
+        self.visitor = mangVis(self.tokens)
+        self.output_file = self.prepareOutputFile()
 
+    ### DEBUG PRINT
+    def printAst(self):
+        print("abstract syntax tree")
+        print(self.ast)
+    
+    def printTokens(self):
+        print("tokenized data")
+        print(self.tokens)
+
+    ### OUTPUT FILE
+    # prepare output filename
+    def prepareOutputFile(self):
+        file_no_ext=self.input_file[0:len(self.input_file)-3]
+        return file_no_ext + ".out.js"
+    # combine file from tokens array
+    def combineFile(self):
+        output_file=""
+        for i in self.tokens:
+            output_file += " "
+            output_file += i.value
+        print("output content:")
+        print(output_file)
+        return output_file
+    
+    # save combined array to file
+    def createOutputFile(self):
+        file_content = self.combineFile()
+        save(self.output_file, file_content)
+
+    ### MANGLING
+    def runVisitor(self):
+        self.visitor.visit(self.ast)
 
 
 def main():
-    file_content=""
+    # handle input
+    file_name=""
     sys.argv.pop(0)
     if len(sys.argv) == 0:
-        file_content=load("./js_test/test1.js")
+        file_name="./js_test/test1.js"
     else:
-        file_content=load(sys.argv[0])
-    print(file_content)
+        file_name=load(sys.argv[0])
+    # create wrapper instance
+    mangler = ManglerWrapper(file_name)
+    mangler.createOutputFile()
+    
 
 if __name__=="__main__":
     main()
