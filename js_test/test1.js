@@ -1,5 +1,5 @@
 const var1 = 12;
-const var2 = 23;
+const var2 = "i";
 
 function func(param) {
     return ()=>{

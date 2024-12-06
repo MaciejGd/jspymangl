@@ -551,7 +551,7 @@ class Parser(object):
             if (self.context.isModule or self.context.allowAwait) and self.lookahead.value == 'await':
                 self.tolerateUnexpectedToken(self.lookahead)
             nxt_token = self.nextToken()
-            expr = self.parseFunctionExpression() if self.matchAsyncFunction() else self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx))
+            expr = self.parseFunctionExpression() if self.matchAsyncFunction() else self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx, False))
 
         elif typ in (
             Token.NumericLiteral,
@@ -606,7 +606,7 @@ class Parser(object):
                 expr = self.parseIdentifierName()
             elif not self.context.strict and self.matchKeyword('let'):
                 nxt_token = self.nextToken()
-                expr = self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx))
+                expr = self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx, True))
             else:
                 self.context.isAssignmentTarget = False
                 self.context.isBindingElement = False
@@ -707,7 +707,6 @@ class Parser(object):
     def parseObjectPropertyKey(self):
         node = self.createNode()
         token = self.nextToken()
-
         typ = token.type
         if typ in (
             Token.StringLiteral,
@@ -724,7 +723,7 @@ class Parser(object):
             Token.NullLiteral,
             Token.Keyword,
         ):
-            key = self.finalize(node, Node.Identifier(token.value, token.idx))
+            key = self.finalize(node, Node.Identifier(token.value, token.idx, True))
 
         elif typ is Token.Punctuator:
             if token.value == '[':
@@ -761,7 +760,7 @@ class Parser(object):
             self.nextToken()
             computed = self.match('[')
             isAsync = not self.hasLineTerminator and (id == 'async') and not (self.match(':', '(', '*', ','))
-            key = self.parseObjectPropertyKey() if isAsync else self.finalize(node, Node.Identifier(id, token.idx))
+            key = self.parseObjectPropertyKey() if isAsync else self.finalize(node, Node.Identifier(id, token.idx, True))
         elif self.match('*'):
             self.nextToken()
         else:
@@ -807,7 +806,7 @@ class Parser(object):
                 method = True
 
             elif token.type is Token.Identifier:
-                id = self.finalize(node, Node.Identifier(token.value, token.idx))
+                id = self.finalize(node, Node.Identifier(token.value, token.idx, False)) # [NEED FURTHER INVESTIGATION AND TESTING]
                 if self.match('='):
                     self.context.firstCoverInitializedNameError = self.lookahead
                     self.nextToken()
@@ -1013,13 +1012,13 @@ class Parser(object):
             token.type is Token.BooleanLiteral or
             token.type is Token.NullLiteral
         )
-
-    def parseIdentifierName(self):
+    # during parsing we will check if we can parse this id
+    def parseIdentifierName(self, mangle_candidate=False):
         node = self.createNode()
         token = self.nextToken()
         if not self.isIdentifierName(token):
             self.throwUnexpectedToken(token)
-        return self.finalize(node, Node.Identifier(token.value, token.idx))
+        return self.finalize(node, Node.Identifier(token.value, token.idx, mangle_candidate))
 
     def parseNewExpression(self):
         node = self.createNode()
@@ -1679,7 +1678,7 @@ class Parser(object):
         if self.lookahead.type is Token.Identifier:
             keyToken = self.lookahead
             key = self.parseVariableIdentifier()
-            init = self.finalize(node, Node.Identifier(keyToken.value, keytToken.idx))
+            init = self.finalize(node, Node.Identifier(keyToken.value, keytToken.idx, False)) # [NEED FURTHER INVESTIGATION AND TESTING]
             if self.match('='):
                 params.append(keyToken)
                 shorthand = True
@@ -1770,8 +1769,7 @@ class Parser(object):
                     self.throwUnexpectedToken(token)
         elif (self.context.isModule or self.context.allowAwait) and token.type is Token.Identifier and token.value == 'await':
             self.tolerateUnexpectedToken(token)
-
-        return self.finalize(node, Node.Identifier(token.value, token.idx))
+        return self.finalize(node, Node.Identifier(token.value, token.idx, True))
 
     def parseVariableDeclaration(self, options):
         node = self.createNode()
@@ -1950,9 +1948,8 @@ class Parser(object):
                 nxt_tkn = self.nextToken()
                 kind = nxt_tkn.value
                 tkn_idx = nxt_tkn.idx 
-
-                if not self.context.strict and self.lookahead.value == 'in':
-                    init = self.finalize(init, Node.Identifier(kind, tkn.idx))
+                if not self.context.strict and self.lookahead.value == 'in': 
+                    init = self.finalize(init, Node.Identifier(kind, tkn_idx, True)) # something wrong in this logic, does not see the point of this statement
                     self.nextToken()
                     left = init
                     right = self.parseExpression()
@@ -2417,7 +2414,7 @@ class Parser(object):
         param = self.parseRestElement(params) if self.match('...') else self.parsePatternWithDefault(params)
         for p in params:
             self.validateParam(options, p, p.value)
-        options.simple = options.simple and isinstance(param, Node.Identifier) # [DEBUG] Check again
+        options.simple = options.simple and isinstance(param, Node.Identifier)
         options.params.append(param)
 
     def parseFormalParameters(self, firstRestricted=None):
@@ -2766,7 +2763,7 @@ class Parser(object):
                 value = self.parseSetterMethod()
             elif self.config.classProperties and not self.match('('):
                 kind = 'init'
-                id = self.finalize(node, Node.Identifier(token.value, token.idx))
+                id = self.finalize(node, Node.Identifier(token.value, token.idx, True)) # [NEED FURTHER INVESTIGATION AND TESTING]
                 if self.match('='):
                     self.nextToken()
                     value = self.parseAssignmentExpression()

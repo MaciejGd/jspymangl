@@ -91,11 +91,14 @@ def main():
     file_name=""
     sys.argv.pop(0)
     if len(sys.argv) == 0:
-        file_name="./js_test/test1.js"
+        file_name="./js_test/test2.js"
     else:
         file_name=load(sys.argv[0])
     # create wrapper instance
     mangler = ManglerWrapper(file_name)
+    # for i in mangler.tokens:
+    #     if (i.type == "Identifier"):
+    #         print(i)
     indexTest(mangler)
     #mangler.printAst()
     

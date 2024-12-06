@@ -1,0 +1,19 @@
+added indexing to tokens and nodes (identifiers)
+ 
+idea:
+    -> creating list of nodes that was previously declared, this tokens would be candidates to mangling
+        it is about functions as well as variables
+    -> during parsing we will add value as 
+    Symbols indicating mangling:
+        -> primary expression starting with let
+        -> parseObjectProperty -> parsing object property
+        -> parseObjectPropertyKey(used in cases like get or set in object, we want to mangle this)
+        -> parseVariableIdentifier (variable/function/object initialization pattern)
+    Symbols that are not candidates:
+        -> id next to async keyword
+        -> parsePropertyPattern (for now as it needs more testing)
+
+[NEED FURTHER INVESTIGATION AND TESTING] search for this comment to see possible code issues
+more testing:
+    parsePropertyPattern
+    parseObjectProperty -> second id 

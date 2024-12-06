@@ -307,10 +307,11 @@ class FunctionExpression(Node):
 
 
 class Identifier(Node):
-    def __init__(self, name, idx):
+    def __init__(self, name, idx, mangle_candidate):
         self.type = Syntax.Identifier
         self.name = name
         self.idx = idx
+        self.mangle_candidate = mangle_candidate
 
 
 class IfStatement(Node):
