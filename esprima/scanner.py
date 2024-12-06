@@ -69,7 +69,7 @@ class Comment(Object):
 
 
 class RawToken(Object):
-    def __init__(self, type=None, value=None, pattern=None, flags=None, regex=None, octal=None, cooked=None, head=None, tail=None, lineNumber=None, lineStart=None, start=None, end=None):
+    def __init__(self, type=None, value=None, pattern=None, flags=None, regex=None, octal=None, cooked=None, head=None, tail=None, lineNumber=None, lineStart=None, start=None, end=None, idx=None):
         self.type = type
         self.value = value
         self.pattern = pattern
@@ -83,6 +83,7 @@ class RawToken(Object):
         self.lineStart = lineStart
         self.start = start
         self.end = end
+        self.idx = idx
 
 
 class ScannerState(Object):
@@ -110,6 +111,8 @@ class Scanner(object):
         self.lineNumber = 1 if self.length > 0 else 0
         self.lineStart = 0
         self.curlyStack = []
+
+        self.idx = -1 # index of token in a token list
 
     def saveState(self):
         return ScannerState(
@@ -525,14 +528,15 @@ class Scanner(object):
             self.index = start
             self.tolerateUnexpectedToken(Messages.InvalidEscapedReservedWord)
             self.index = restore
-
+        self.idx+=1
         return RawToken(
             type=type,
             value=id,
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     # https://tc39.github.io/ecma262/#sec-punctuators
@@ -610,14 +614,15 @@ class Scanner(object):
 
         if self.index == start:
             self.throwUnexpectedToken()
-
+        self.idx+=1
         return RawToken(
             type=Token.Punctuator,
             value=str,
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     # https://tc39.github.io/ecma262/#sec-literals-numeric-literals
@@ -637,14 +642,15 @@ class Scanner(object):
 
         if Character.isIdentifierStart(self.source[self.index]):
             self.throwUnexpectedToken()
-
+        self.idx+=1
         return RawToken(
             type=Token.NumericLiteral,
             value=int(num, 16),
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     def scanBinaryLiteral(self, start):
@@ -666,14 +672,15 @@ class Scanner(object):
             ch = self.source[self.index]
             if Character.isIdentifierStart(ch) or Character.isDecimalDigit(ch):
                 self.throwUnexpectedToken()
-
+        self.idx+=1
         return RawToken(
             type=Token.NumericLiteral,
             value=int(num, 2),
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     def scanOctalLiteral(self, prefix, start):
@@ -698,7 +705,7 @@ class Scanner(object):
 
         if Character.isIdentifierStart(self.source[self.index]) or Character.isDecimalDigit(self.source[self.index]):
             self.throwUnexpectedToken()
-
+        self.idx+=1
         return RawToken(
             type=Token.NumericLiteral,
             value=int(num, 8),
@@ -706,7 +713,8 @@ class Scanner(object):
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     def isImplicitOctalLiteral(self):
@@ -787,13 +795,15 @@ class Scanner(object):
             self.throwUnexpectedToken()
 
         value = float(num)
+        self.idx+=1
         return RawToken(
             type=Token.NumericLiteral,
             value=int(value) if value.is_integer() else value,
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     # https://tc39.github.io/ecma262/#sec-literals-string-literals
@@ -879,6 +889,7 @@ class Scanner(object):
             self.index = start
             self.throwUnexpectedToken()
 
+        self.idx+=1
         return RawToken(
             type=Token.StringLiteral,
             value=str,
@@ -886,7 +897,8 @@ class Scanner(object):
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     # https://tc39.github.io/ecma262/#sec-template-literal-lexical-components
@@ -991,6 +1003,7 @@ class Scanner(object):
             if self.curlyStack:
                 self.curlyStack.pop()
 
+        self.idx+=1
         return RawToken(
             type=Token.Template,
             value=self.source[start + 1:self.index - rawOffset],
@@ -1000,7 +1013,8 @@ class Scanner(object):
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx=self.idx
         )
 
     # https://tc39.github.io/ecma262/#sec-literals-regular-expression-literals
@@ -1126,6 +1140,7 @@ class Scanner(object):
         flags = self.scanRegExpFlags()
         value = self.testRegExp(pattern, flags)
 
+        self.idx+=1
         return RawToken(
             type=Token.RegularExpression,
             value='',
@@ -1135,18 +1150,21 @@ class Scanner(object):
             lineNumber=self.lineNumber,
             lineStart=self.lineStart,
             start=start,
-            end=self.index
+            end=self.index,
+            idx = self.idx
         )
 
     def lex(self):
         if self.eof():
+            self.idx+=1
             return RawToken(
                 type=Token.EOF,
                 value='',
                 lineNumber=self.lineNumber,
                 lineStart=self.lineStart,
                 start=self.index,
-                end=self.index
+                end=self.index,
+                idx = self.idx
             )
 
         ch = self.source[self.index]

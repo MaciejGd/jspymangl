@@ -32,13 +32,13 @@ from .token import Token, TokenName
 
 
 class BufferEntry(Object):
-    def __init__(self, type, value, regex=None, range=None, loc=None):
+    def __init__(self, type, value, regex=None, range=None, loc=None, idx=None):
         self.type = type
         self.value = value
         self.regex = regex
         self.range = range
         self.loc = loc
-
+        self.idx = idx
 
 class Reader(object):
     def __init__(self):
@@ -127,6 +127,8 @@ class Tokenizer(object):
         self.buffer = deque()
         self.reader = Reader()
 
+        self.idx = 0 # we need idx to combine file again after mangling
+
     def errors(self):
         return self.errorHandler.errors
 
@@ -172,7 +174,8 @@ class Tokenizer(object):
 
                 entry = BufferEntry(
                     type=TokenName[token.type],
-                    value=self.scanner.source[token.start:token.end]
+                    value=self.scanner.source[token.start:token.end],
+                    idx=token.idx
                 )
                 if self.trackRange:
                     entry.range = [token.start, token.end]

@@ -77,6 +77,14 @@ class ManglerWrapper():
     def runVisitor(self):
         self.visitor.visit(self.ast)
 
+# first check how combined file look alike, then run visitor and check again
+def indexTest(mangler):
+    print("COMBINING OG FILE")
+    mangler.combineFile()
+    mangler.runVisitor()
+    print("COMBINING VISITED FILE")
+    mangler.combineFile()
+    mangler.createOutputFile()
 
 def main():
     # handle input
@@ -88,7 +96,8 @@ def main():
         file_name=load(sys.argv[0])
     # create wrapper instance
     mangler = ManglerWrapper(file_name)
-    mangler.createOutputFile()
+    indexTest(mangler)
+    #mangler.printAst()
     
 
 if __name__=="__main__":

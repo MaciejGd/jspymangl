@@ -88,12 +88,13 @@ class Marker(object):
 
 
 class TokenEntry(Object):
-    def __init__(self, type=None, value=None, regex=None, range=None, loc=None):
+    def __init__(self, type=None, value=None, regex=None, range=None, loc=None, idx=None):
         self.type = type
         self.value = value
         self.regex = regex
         self.range = range
         self.loc = loc
+        self.idx = idx #idx should be passed to an Identifier constructor so we would be able to combine file again after the mangling
 
 
 class Parser(object):
@@ -159,6 +160,7 @@ class Parser(object):
             strict=False
         )
         self.tokens = []
+        self.idx = 0
 
         self.startMarker = Marker(
             index=0,
@@ -280,7 +282,9 @@ class Parser(object):
         t = TokenEntry(
             type=TokenName[token.type],
             value=self.getTokenRaw(token),
+            idx = token.idx
         )
+
         if self.config.range:
             t.range = [token.start, token.end]
         if self.config.loc:
@@ -304,7 +308,7 @@ class Parser(object):
 
     def nextToken(self):
         token = self.lookahead
-
+        
         self.lastMarker.index = self.scanner.index
         self.lastMarker.line = self.scanner.lineNumber
         self.lastMarker.column = self.scanner.index - self.scanner.lineStart
@@ -546,7 +550,8 @@ class Parser(object):
         if typ is Token.Identifier:
             if (self.context.isModule or self.context.allowAwait) and self.lookahead.value == 'await':
                 self.tolerateUnexpectedToken(self.lookahead)
-            expr = self.parseFunctionExpression() if self.matchAsyncFunction() else self.finalize(node, Node.Identifier(self.nextToken().value))
+            nxt_token = self.nextToken()
+            expr = self.parseFunctionExpression() if self.matchAsyncFunction() else self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx))
 
         elif typ in (
             Token.NumericLiteral,
@@ -600,7 +605,8 @@ class Parser(object):
             if not self.context.strict and self.context.allowYield and self.matchKeyword('yield'):
                 expr = self.parseIdentifierName()
             elif not self.context.strict and self.matchKeyword('let'):
-                expr = self.finalize(node, Node.Identifier(self.nextToken().value))
+                nxt_token = self.nextToken()
+                expr = self.finalize(node, Node.Identifier(nxt_token.value, nxt_token.idx))
             else:
                 self.context.isAssignmentTarget = False
                 self.context.isBindingElement = False
@@ -718,7 +724,7 @@ class Parser(object):
             Token.NullLiteral,
             Token.Keyword,
         ):
-            key = self.finalize(node, Node.Identifier(token.value))
+            key = self.finalize(node, Node.Identifier(token.value, token.idx))
 
         elif typ is Token.Punctuator:
             if token.value == '[':
@@ -755,7 +761,7 @@ class Parser(object):
             self.nextToken()
             computed = self.match('[')
             isAsync = not self.hasLineTerminator and (id == 'async') and not (self.match(':', '(', '*', ','))
-            key = self.parseObjectPropertyKey() if isAsync else self.finalize(node, Node.Identifier(id))
+            key = self.parseObjectPropertyKey() if isAsync else self.finalize(node, Node.Identifier(id, token.idx))
         elif self.match('*'):
             self.nextToken()
         else:
@@ -801,7 +807,7 @@ class Parser(object):
                 method = True
 
             elif token.type is Token.Identifier:
-                id = self.finalize(node, Node.Identifier(token.value))
+                id = self.finalize(node, Node.Identifier(token.value, token.idx))
                 if self.match('='):
                     self.context.firstCoverInitializedNameError = self.lookahead
                     self.nextToken()
@@ -1013,7 +1019,7 @@ class Parser(object):
         token = self.nextToken()
         if not self.isIdentifierName(token):
             self.throwUnexpectedToken(token)
-        return self.finalize(node, Node.Identifier(token.value))
+        return self.finalize(node, Node.Identifier(token.value, token.idx))
 
     def parseNewExpression(self):
         node = self.createNode()
@@ -1371,7 +1377,7 @@ class Parser(object):
             for prop in param.properties:
                 self.checkPatternParam(options, prop if prop.type is Syntax.RestElement else prop.value)
 
-        options.simple = options.simple and isinstance(param, Node.Identifier)
+        options.simple = options.simple and isinstance(param, Node.Identifier) #[DOUBLE CHECK THAT]
 
     def reinterpretAsCoverFormalsList(self, expr):
         params = [expr]
@@ -1673,7 +1679,7 @@ class Parser(object):
         if self.lookahead.type is Token.Identifier:
             keyToken = self.lookahead
             key = self.parseVariableIdentifier()
-            init = self.finalize(node, Node.Identifier(keyToken.value))
+            init = self.finalize(node, Node.Identifier(keyToken.value, keytToken.idx))
             if self.match('='):
                 params.append(keyToken)
                 shorthand = True
@@ -1765,7 +1771,7 @@ class Parser(object):
         elif (self.context.isModule or self.context.allowAwait) and token.type is Token.Identifier and token.value == 'await':
             self.tolerateUnexpectedToken(token)
 
-        return self.finalize(node, Node.Identifier(token.value))
+        return self.finalize(node, Node.Identifier(token.value, token.idx))
 
     def parseVariableDeclaration(self, options):
         node = self.createNode()
@@ -1941,10 +1947,12 @@ class Parser(object):
                     self.expect(';')
             elif self.matchKeyword('const', 'let'):
                 init = self.createNode()
-                kind = self.nextToken().value
+                nxt_tkn = self.nextToken()
+                kind = nxt_tkn.value
+                tkn_idx = nxt_tkn.idx 
 
                 if not self.context.strict and self.lookahead.value == 'in':
-                    init = self.finalize(init, Node.Identifier(kind))
+                    init = self.finalize(init, Node.Identifier(kind, tkn.idx))
                     self.nextToken()
                     left = init
                     right = self.parseExpression()
@@ -2409,7 +2417,7 @@ class Parser(object):
         param = self.parseRestElement(params) if self.match('...') else self.parsePatternWithDefault(params)
         for p in params:
             self.validateParam(options, p, p.value)
-        options.simple = options.simple and isinstance(param, Node.Identifier)
+        options.simple = options.simple and isinstance(param, Node.Identifier) # [DEBUG] Check again
         options.params.append(param)
 
     def parseFormalParameters(self, firstRestricted=None):
@@ -2758,7 +2766,7 @@ class Parser(object):
                 value = self.parseSetterMethod()
             elif self.config.classProperties and not self.match('('):
                 kind = 'init'
-                id = self.finalize(node, Node.Identifier(token.value))
+                id = self.finalize(node, Node.Identifier(token.value, token.idx))
                 if self.match('='):
                     self.nextToken()
                     value = self.parseAssignmentExpression()
