@@ -98,6 +98,9 @@ def main():
     # create wrapper instance
     mangler = ManglerWrapper(file_name)
     scpVisTest(mangler.ast)
+    #print("PRINTING TOKENS")
+    #mangler.printAst()
+    #mangler.printTokens()
     #mangler.runVisitor()
     
     

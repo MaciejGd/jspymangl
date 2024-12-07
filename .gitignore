@@ -1,5 +1,5 @@
 # ignore python compiled files (pycache)
 esprima/__pycache__
 __pycache__/
-notes.txt
+notex.txt
 js_test/*.out.js

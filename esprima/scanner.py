@@ -23,6 +23,8 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import inspect
+
 import re
 
 from .objects import Object
@@ -87,10 +89,11 @@ class RawToken(Object):
 
 
 class ScannerState(Object):
-    def __init__(self, index=None, lineNumber=None, lineStart=None):
+    def __init__(self, index=None, lineNumber=None, lineStart=None, idx=None):
         self.index = index
         self.lineNumber = lineNumber
         self.lineStart = lineStart
+        self.idx = idx
 
 
 class Octal(object):
@@ -118,13 +121,15 @@ class Scanner(object):
         return ScannerState(
             index=self.index,
             lineNumber=self.lineNumber,
-            lineStart=self.lineStart
+            lineStart=self.lineStart,
+            idx=self.idx
         )
 
     def restoreState(self, state):
         self.index = state.index
         self.lineNumber = state.lineNumber
         self.lineStart = state.lineStart
+        self.idx = state.idx
 
     def eof(self):
         return self.index >= self.length
@@ -528,6 +533,7 @@ class Scanner(object):
             self.index = start
             self.tolerateUnexpectedToken(Messages.InvalidEscapedReservedWord)
             self.index = restore
+
         self.idx+=1
         return RawToken(
             type=type,

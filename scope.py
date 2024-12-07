@@ -2,16 +2,28 @@ import esprima.visitor as vis
 from esprima import nodes as Node
 from esprima.syntax import Syntax
 
-class ScopeVisitor(vis.Visitor):
-    def __init__(self, is_global_scope=True, is_function_scope=False):
-        self.child_scopes = []
-        self.ids = []
+class ManglingCandidates():
+    def __init__(self):
         self.mangle_vars = {}
         self.mangle_funcs = {}
-        print("Scope visitor constructor")
-    
-    #def init_visit(self, obj): # function will vary depending on type of scope
+        self.mangle_objs = {}
+    def clone(self):
+        cpy_mang_cand = ManglingCandidates()
+        for i in self.mangle_vars:
+            cpy_mang_cand.mangle_vars[i] = self.mangle_vars[i]
+        for i in self.mangle_vars:
+            cpy_mang_cand.mangle_funcs[i] = self.mangle_funcs[i]
+        for i in self.mangle_objs:
+            cpy_mang_cand.mangle_objs[i] = self.mangle_objs[i]
+        return cpy_mang_cand
 
+
+class ScopeVisitor(vis.Visitor):
+    def __init__(self, mangle_candidates, is_global_scope=True, is_function_scope=False):
+        self.child_scopes = []
+        self.ids = []
+        self.mang_cand = mangle_candidates.clone() # unfortunately we need to pass as a copy in here [possible refactoring needed]
+        print("Scope visitor constructor")
 
     def visit(self, obj):
         """we override this function as we do not want to enter inner scopes, and first just parse global scope"""
@@ -44,8 +56,7 @@ class ScopeVisitor(vis.Visitor):
                         self._visit_context[last] = visitor
                         stack.pop()
                         if (isinstance(last, Node.FunctionDeclaration)): # do not add function declaration to a stack as we will parse it later
-                            print("In function instance")
-                            self.HandleFunctionDeclaration(last)
+                            self.handleFunctionDeclaration(last)
                             self.child_scopes.append(last)
                         else: # here append new scopes symbols
                             stack.append((visitor(last), last))
@@ -65,52 +76,43 @@ class ScopeVisitor(vis.Visitor):
                 self._visit_context = {}
     
     # add function id to scope mangle but do not parse it yet
-    def HandleFunctionDeclaration(self, obj):
+    def handleFunctionDeclaration(self, obj):
         func_id = obj.id
-        if func_id.name in self.mangle_funcs:
-            self.mangle_funcs.append(func_id)
+        if func_id.name in self.mang_cand.mangle_funcs:
+            self.mang_cand.mangle_funcs[func_id.name].append(func_id)
         else:
-            self.mangle_funcs[func_id.name] = [func_id]
+            self.mang_cand.mangle_funcs[func_id.name] = [func_id]
 
     def visit_VariableDeclarator(self, obj):
-        print("in variable declarator visitor")
         id_name = obj.id.name
-        if id_name in self.mangle_vars: # if it already exists in map then append
-            self.mangle_vars[id_name].append(obj.id)
+        if id_name in self.mang_cand.mangle_vars: # if it already exists in map then append
+            self.mang_cand.mangle_vars[id_name].append(obj.id)
         else: # if it not exist in map then add it
-            self.mangle_vars[id_name] = [obj.id]
+            self.mang_cand.mangle_vars[id_name] = [obj.id]
         # parse init part further, do not parse id again
         yield obj.init
 
-    def handleVariableDeclarator(self, obj):
-        print("in variable declarator visitor")
-        id_name = obj.id.name
-        if id_name in self.mangle_vars: # if it already exists in map then append
-            self.mangle_vars[id_name].append(obj.id)
-        else: # if it not exist in map then add it
-            self.mangle_vars[id_name] = [obj.id]
-        # also if we can mangle the identifier after assignement operator we should also do it
-        # handle var num = num1;
-        # if obj.init.type == "Identifier":
-        #     if obj.init.name in self.mangle_vars:
-        #         self.mangle_vars[obj.init.name].append(obj.init)
-        # # handle var num = func2(num1, num2, num3);
-        # if obj.init.type == "CallExpression":
+    # parse call expression e.x. func(nameOne, nameTwo, etc.)
+    def visit_CallExpression(self, obj):
+        caller_id = obj.callee
+        if caller_id.name in self.mang_cand.mangle_funcs:
+            self.mang_cand.mangle_funcs[caller_id.name].append(caller_id)
+        return obj.arguments
 
     def visit_Identifier(self, obj):
-        print("in identifier: ")
-        print(obj.name)
+        print(obj.name, end=" : ")
+        print(obj.idx)
         id_name = obj.name
-        if id_name in self.mangle_vars:
-            self.mangle_vars[id_name].append(obj)
+        if id_name in self.mang_cand.mangle_vars:
+            self.mang_cand.mangle_vars[id_name].append(obj)
 
 
 def ScopeVisitorTest(ast):
-    scopeVis = ScopeVisitor()
-    print(ast)
+    mang_cand = ManglingCandidates()
+    scopeVis = ScopeVisitor(mang_cand)
     scopeVis.visit(ast)
     #print(scopeVis.child_scopes)
-    print("mangle candidates variables: ")
-    print(scopeVis.mangle_vars)
+    #print("mangle candidates variables: ")
+    print(scopeVis.mang_cand.mangle_vars)
     print("function mangle candidates variables: ")
-    print(scopeVis.mangle_funcs)
+    print(scopeVis.mang_cand.mangle_funcs)

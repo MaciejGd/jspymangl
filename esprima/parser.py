@@ -160,7 +160,6 @@ class Parser(object):
             strict=False
         )
         self.tokens = []
-        self.idx = 0
 
         self.startMarker = Marker(
             index=0,
@@ -308,7 +307,6 @@ class Parser(object):
 
     def nextToken(self):
         token = self.lookahead
-        
         self.lastMarker.index = self.scanner.index
         self.lastMarker.line = self.scanner.lineNumber
         self.lastMarker.column = self.scanner.index - self.scanner.lineStart
@@ -1678,7 +1676,7 @@ class Parser(object):
         if self.lookahead.type is Token.Identifier:
             keyToken = self.lookahead
             key = self.parseVariableIdentifier()
-            init = self.finalize(node, Node.Identifier(keyToken.value, keytToken.idx, False)) # [NEED FURTHER INVESTIGATION AND TESTING]
+            init = self.finalize(node, Node.Identifier(keyToken.value, keyToken.idx, False)) # [NEED FURTHER INVESTIGATION AND TESTING]
             if self.match('='):
                 params.append(keyToken)
                 shorthand = True
