@@ -17,3 +17,10 @@ idea:
 more testing:
     parsePropertyPattern
     parseObjectProperty -> second id 
+
+
+Mangling would be done based on scopes, mangling in outer scope will lead to mangling in inner scope (if id's match)
+However we should first analyze global scope so we should visit AST in breadth first search manner. We want to open new
+scope every time some of the below nodes occurs:
+->FunctionDeclaration
+->ArrowFunctionExpression/ExpressionStatement

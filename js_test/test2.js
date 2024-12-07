@@ -15,6 +15,9 @@ for (let i in tab)
     console.log(i);
 }
 
+
+newFunction(variable)
+
 variable.current("new name");
 variable[x] = 3;
 let new_one = 2;

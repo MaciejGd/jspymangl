@@ -24,6 +24,7 @@
 import esprima.esprima as _es
 import sys
 from mangler import ManglerVisitor as mangVis
+from scope import ScopeVisitorTest as scpVisTest
 
 # load input file 
 def load(input_file):
@@ -91,16 +92,14 @@ def main():
     file_name=""
     sys.argv.pop(0)
     if len(sys.argv) == 0:
-        file_name="./js_test/test2.js"
+        file_name="./js_test/scope_test/test1.js"
     else:
         file_name=load(sys.argv[0])
     # create wrapper instance
     mangler = ManglerWrapper(file_name)
-    # for i in mangler.tokens:
-    #     if (i.type == "Identifier"):
-    #         print(i)
-    indexTest(mangler)
-    #mangler.printAst()
+    scpVisTest(mangler.ast)
+    #mangler.runVisitor()
+    
     
 
 if __name__=="__main__":
