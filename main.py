@@ -92,7 +92,7 @@ def main():
     file_name=""
     sys.argv.pop(0)
     if len(sys.argv) == 0:
-        file_name="./js_test/scope_test/test1.js"
+        file_name="./js_test/scope_test/test4.js"
     else:
         file_name=load(sys.argv[0])
     # create wrapper instance

@@ -2,4 +2,5 @@
 esprima/__pycache__
 __pycache__/
 notex.txt
+txt/
 js_test/*.out.js
