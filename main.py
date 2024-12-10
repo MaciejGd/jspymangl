@@ -23,7 +23,7 @@
 
 import esprima.esprima as _es
 import sys
-from mangler import ManglerVisitor as mangVis
+from mangler import NameMangler as mang
 from scope import ScopeVisitorTest as scpVisTest
 
 # load input file 
@@ -42,7 +42,6 @@ class ManglerWrapper():
         self.js_code = load(input_file)
         self.ast = _es.parse(self.js_code)
         self.tokens = _es.tokenize(self.js_code)
-        self.visitor = mangVis(self.tokens)
         self.output_file = self.prepareOutputFile()
 
     ### DEBUG PRINT
@@ -74,9 +73,6 @@ class ManglerWrapper():
         file_content = self.combineFile()
         save(self.output_file, file_content)
 
-    ### MANGLING
-    def runVisitor(self):
-        self.visitor.visit(self.ast)
 
 # first check how combined file look alike, then run visitor and check again
 def indexTest(mangler):
@@ -97,12 +93,12 @@ def main():
         file_name=load(sys.argv[0])
     # create wrapper instance
     mangler = ManglerWrapper(file_name)
-    scpVisTest(mangler.ast)
+    #scpVisTest(mangler.ast)
+    name_mang = mang()
     #print("PRINTING TOKENS")
     #mangler.printAst()
     #mangler.printTokens()
     #mangler.runVisitor()
-    
     
 
 if __name__=="__main__":

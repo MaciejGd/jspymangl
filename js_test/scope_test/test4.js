@@ -3,6 +3,9 @@ function new_test(){
 }
 let func_expr = function (){
     var second_scope = 3;
+    function againFunc(){
+        const LAST_TEST = 3;
+    }
 }
 var test_obj = {
     "new_one" : function()
@@ -15,4 +18,5 @@ var test_obj = {
 }
 
 let zero_index;
+zero_index = 212;
 //console.log(new_test);

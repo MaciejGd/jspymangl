@@ -6,15 +6,19 @@ class ScopeVisitor(vis.Visitor):
     def __init__(self, mangle_candidates, is_global_scope=True, is_function_scope=False):
         self.child_scopes = []
         self.ids = []
-        self.mang_cand = {} # unfortunately we need to pass as a copy in here [possible refactoring needed]
-        self.copy_mangle_candidates(mangle_candidates)
+        #self.mang_cand = {} # unfortunately we need to pass as a copy in here [possible refactoring needed]
+        #self.copy_mangle_candidates(mangle_candidates)
+        self.mang_cand = mangle_candidates.copy()
         print("Scope visitor constructor")
 
+
+    # copy existing mangle candidates
     def copy_mangle_candidates(self, mangle_candidates):
         for i in mangle_candidates:
             self.mang_cand[i] = mangle_candidates[i]
 
-        # create instance of object if it does not already exists
+
+    # create instance of object if it does not already exists
     def force_push_mangle(self, obj):
         if getattr(obj, "name", None) == None:
             print("Error during pushing mangle candidate in obj")
@@ -24,6 +28,8 @@ class ScopeVisitor(vis.Visitor):
             self.mang_cand[obj.name].append(obj)
         else:
             self.mang_cand[obj.name] = [obj]
+
+
     # push object to list if its instance already exists
     def push_mangle(self, obj):
         if getattr(obj, "name", None) == None:
@@ -90,25 +96,37 @@ class ScopeVisitor(vis.Visitor):
     def handleFunctionDeclaration(self, obj):
         self.force_push_mangle(obj.id)
 
+
     def visit_VariableDeclarator(self, obj):
         self.force_push_mangle(obj.id)
-        # parse init part further, do not parse id again
         yield obj.init
 
-    # parse call expression e.x. func(nameOne, nameTwo, etc.)
+
     def visit_CallExpression(self, obj):
         caller_id = obj.callee
         if (obj.callee.type == "MemberExpression"):
-            return vis.Visited(obj) # skip mangling object members for now
+            return vis.Visited(obj)
         self.push_mangle(obj.callee)
         return obj.arguments
+
 
     def visit_Identifier(self, obj):
         self.push_mangle(obj)
 
 
-        
 
+# visit all scopes and combine mangle lists
+def createMangleList(head_scope):
+    """Args: head instance of ScopeVisitor"""
+    mangle_list = head_scope.mang_cand.copy()    
+    for scope in head_scope.child_scopes:
+        newScope = ScopeVisitor(head_scope.mang_cand)
+        newScope.visit(scope)
+        if len(newScope.child_scopes) != 0:
+            mangle_list = mangle_list | createMangleList(newScope)
+        else:
+            mangle_list = mangle_list | newScope.mang_cand
+    return mangle_list
 
 
 def ScopeVisitorTest(ast):
@@ -117,12 +135,16 @@ def ScopeVisitorTest(ast):
     scopeVis.visit(ast)
     #print(scopeVis.child_scopes)
     print("mangle candidates: ")
-    idx = 0
-    for i in scopeVis.child_scopes:
-        new_scopeVis = ScopeVisitor(scopeVis.mang_cand)
-        new_scopeVis.visit(i)
-        print("NEW INNER AST: ", idx)
-        print(new_scopeVis.mang_cand)
-        idx+=1
-    #print(scopeVis.mang_cand)
+    # idx = 0
+    # for i in scopeVis.child_scopes:
+    #     new_scopeVis = ScopeVisitor(scopeVis.mang_cand)
+    #     new_scopeVis.visit(i)
+    #     print("NEW INNER AST: ", idx)
+    #     print(new_scopeVis.mang_cand)
+    #     idx+=1
+    
+    mangle_list = createMangleList(scopeVis)
+    print("Mangle list returned")
+    print(mangle_list)
+    #print(mang_cand)
     
